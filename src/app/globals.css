@@ -1,0 +1,74 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    @apply border-black;
+  }
+
+  body {
+    @apply bg-cream text-black font-sans;
+  }
+}
+
+@layer components {
+  /* Neo-Brutalism Button */
+  .btn-brutal {
+    @apply px-6 py-3 bg-purple text-white font-bold border-brutal border-black shadow-brutal;
+    @apply transition-all duration-150 ease-in-out;
+    @apply hover:shadow-brutal-hover hover:translate-x-[-2px] hover:translate-y-[-2px];
+    @apply active:shadow-brutal-active active:translate-x-[2px] active:translate-y-[2px];
+  }
+
+  .btn-brutal-secondary {
+    @apply px-6 py-3 bg-skyblue text-black font-bold border-brutal border-black shadow-brutal;
+    @apply transition-all duration-150 ease-in-out;
+    @apply hover:shadow-brutal-hover hover:translate-x-[-2px] hover:translate-y-[-2px];
+    @apply active:shadow-brutal-active active:translate-x-[2px] active:translate-y-[2px];
+  }
+
+  .btn-brutal-danger {
+    @apply px-6 py-3 bg-red-500 text-white font-bold border-brutal border-black shadow-brutal;
+    @apply transition-all duration-150 ease-in-out;
+    @apply hover:shadow-brutal-hover hover:translate-x-[-2px] hover:translate-y-[-2px];
+    @apply active:shadow-brutal-active active:translate-x-[2px] active:translate-y-[2px];
+  }
+
+  /* Neo-Brutalism Card */
+  .card-brutal {
+    @apply bg-cream border-brutal border-black shadow-brutal p-6;
+  }
+
+  /* Neo-Brutalism Input */
+  .input-brutal {
+    @apply px-4 py-2 border-brutal border-black bg-white shadow-brutal;
+    @apply focus:outline-none focus:shadow-brutal-hover focus:translate-x-[-2px] focus:translate-y-[-2px];
+    @apply transition-all duration-150;
+  }
+
+  /* Health Bar Segment */
+  .health-segment {
+    @apply w-12 h-8 border-2 border-black bg-skyblue;
+    @apply transition-all duration-300;
+  }
+
+  .health-segment.lost {
+    @apply bg-gray-300 opacity-50;
+  }
+
+  /* XP Progress Bar */
+  .xp-bar {
+    @apply w-full h-8 border-brutal border-black bg-white overflow-hidden;
+  }
+
+  .xp-fill {
+    @apply h-full bg-purple transition-all duration-500 ease-out;
+  }
+}
+
+@layer utilities {
+  .text-shadow-brutal {
+    text-shadow: 3px 3px 0px #725CAD;
+  }
+}
