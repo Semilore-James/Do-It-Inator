@@ -56,9 +56,14 @@ export async function POST(req: Request) {
 
     await dbConnect();
 
+    // Find current user first (fix for TypeScript error)
+    const currentUser = await User.findById(session.user.id);
+    if (!currentUser) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
     // Find friend by email
     const friend = await User.findOne({ email: result.data.friendEmail });
-
     if (!friend) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
@@ -69,19 +74,18 @@ export async function POST(req: Request) {
     }
 
     // Check if already friends
-    const currentUser = await User.findById(session.user.id);
-    if (currentUser?.friends.includes(friend._id)) {
+    if (currentUser.friends.includes(friend._id)) {
       return NextResponse.json({ error: 'Already friends' }, { status: 400 });
     }
 
     // Check if request already sent
-    if (friend.friendRequests.includes(currentUser?._id)) {
+    if (friend.friendRequests.includes(currentUser._id)) {
       return NextResponse.json({ error: 'Friend request already sent' }, { status: 400 });
     }
 
     // Add friend request
     await User.findByIdAndUpdate(friend._id, {
-      $addToSet: { friendRequests: session.user.id },
+      $addToSet: { friendRequests: currentUser._id },
     });
 
     return NextResponse.json({ message: 'Friend request sent successfully' });
