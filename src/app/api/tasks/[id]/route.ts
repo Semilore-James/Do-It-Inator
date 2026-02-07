@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { authOptions } from '@/lib/auth';
 import dbConnect from '@/lib/dbConnect';
 import Task from '@/lib/models/Task';
 import User from '@/lib/models/User';
@@ -10,7 +10,7 @@ import { XP_REWARDS, HEALTH_COSTS, checkLevelUp, getMaxHealthForLevel } from '@/
 // GET single task
 export async function GET(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -18,10 +18,11 @@ export async function GET(
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    const { id: taskId } = await params;
 
     await dbConnect();
 
-    const task = await Task.findById(params.id)
+    const task = await Task.findById(taskId)
       .populate('userId', 'name email image')
       .populate('assignedBy', 'name email image');
 
@@ -48,7 +49,7 @@ export async function GET(
 // PATCH update task
 export async function PATCH(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -67,10 +68,11 @@ export async function PATCH(
         { status: 400 }
       );
     }
+    const { id: taskId } = await params;
 
     await dbConnect();
 
-    const task = await Task.findById(params.id);
+    const task = await Task.findById(taskId);
 
     if (!task) {
       return NextResponse.json({ error: 'Task not found' }, { status: 404 });
@@ -131,7 +133,7 @@ export async function PATCH(
 
     // Update task
     const updatedTask = await Task.findByIdAndUpdate(
-      params.id,
+      taskId,
       {
         ...result.data,
         deadline: result.data.deadline ? new Date(result.data.deadline) : task.deadline,
@@ -157,7 +159,7 @@ export async function PATCH(
 // DELETE task
 export async function DELETE(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -165,10 +167,10 @@ export async function DELETE(
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-
+    const { id: taskId } = await params;
     await dbConnect();
 
-    const task = await Task.findById(params.id);
+    const task = await Task.findById(taskId);
 
     if (!task) {
       return NextResponse.json({ error: 'Task not found' }, { status: 404 });
@@ -179,7 +181,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    await Task.findByIdAndDelete(params.id);
+    await Task.findByIdAndDelete(taskId);
 
     return NextResponse.json({ message: 'Task deleted successfully' });
   } catch (error) {

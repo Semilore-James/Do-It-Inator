@@ -1,13 +1,13 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { authOptions } from '@/lib/auth';
 import dbConnect from '@/lib/dbConnect';
 import User from '@/lib/models/User';
 
 // PATCH accept friend request
 export async function PATCH(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> } // ← Changed to Promise
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -15,6 +15,8 @@ export async function PATCH(
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const { id: friendId } = await params; // ← Await params and destructure
 
     await dbConnect();
 
@@ -25,17 +27,17 @@ export async function PATCH(
     }
 
     // Check if friend request exists
-    if (!currentUser.friendRequests.includes(params.id as any)) {
+    if (!currentUser.friendRequests.includes(friendId as any)) {
       return NextResponse.json({ error: 'Friend request not found' }, { status: 404 });
     }
 
     // Add to friends list for both users
     await User.findByIdAndUpdate(session.user.id, {
-      $addToSet: { friends: params.id },
-      $pull: { friendRequests: params.id },
+      $addToSet: { friends: friendId },
+      $pull: { friendRequests: friendId },
     });
 
-    await User.findByIdAndUpdate(params.id, {
+    await User.findByIdAndUpdate(friendId, {
       $addToSet: { friends: session.user.id },
     });
 
@@ -49,7 +51,7 @@ export async function PATCH(
 // DELETE reject/remove friend
 export async function DELETE(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> } // ← Changed to Promise
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -58,18 +60,20 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const { id: friendId } = await params; // ← Await params and destructure
+
     await dbConnect();
 
     // Remove from friend requests or friends list
     await User.findByIdAndUpdate(session.user.id, {
       $pull: { 
-        friendRequests: params.id,
-        friends: params.id,
+        friendRequests: friendId,
+        friends: friendId,
       },
     });
 
     // If they were friends, remove from other user's friends list too
-    await User.findByIdAndUpdate(params.id, {
+    await User.findByIdAndUpdate(friendId, {
       $pull: { friends: session.user.id },
     });
 
