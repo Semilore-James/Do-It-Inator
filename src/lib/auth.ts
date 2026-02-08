@@ -51,6 +51,22 @@ export const authOptions: NextAuthOptions = {
         return true;
       }
     },
+        // ADD THIS JWT CALLBACK
+    async jwt({ token, user, account }) {
+      // On sign in, add user ID to token
+      if (user) {
+        try {
+          await dbConnect();
+          const dbUser = await User.findOne({ email: user.email });
+          if (dbUser) {
+            token.id = dbUser._id.toString(); // ← This adds the ID to the token
+          }
+        } catch (error) {
+          console.error('❌ JWT callback error:', error);
+        }
+      }
+      return token;
+    },
     async session({ session, token }) {
       try {
         if (session.user) {
