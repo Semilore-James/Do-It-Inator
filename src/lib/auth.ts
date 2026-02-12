@@ -3,6 +3,7 @@ import { NextAuthOptions } from 'next-auth';
 import GoogleProvider from 'next-auth/providers/google';
 import dbConnect from '@/lib/dbConnect';
 import User from '@/lib/models/User';
+import NextAuth from 'next-auth';
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -119,3 +120,5 @@ export const authOptions: NextAuthOptions = {
   // Enable debug mode to see detailed logs
   debug: process.env.NODE_ENV === 'development',
 };
+
+export const { handlers, auth, signIn, signOut } = NextAuth(authOptions);
