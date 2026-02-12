@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 import dbConnect from '@/lib/dbConnect';
 import User from '@/lib/models/User';
 import { friendRequestSchema } from '@/lib/validation';
@@ -7,7 +8,7 @@ import { friendRequestSchema } from '@/lib/validation';
 // GET all friends and friend requests
 export async function GET(req: Request) {
   try {
-    const session = await auth;
+    const session = await getServerSession(authOptions);
     
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -36,7 +37,7 @@ export async function GET(req: Request) {
 // POST send friend request
 export async function POST(req: Request) {
   try {
-    const session = await auth;
+    const session = await getServerSession(authOptions);
     
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
