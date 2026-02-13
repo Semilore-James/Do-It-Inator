@@ -10,18 +10,29 @@ export async function GET() {
   try {
     const session = await getServerSession(authOptions);
     
+    console.log('📊 Stats - Session user:', session?.user);
+    console.log('📊 Stats - User ID:', session?.user?.id);
+    console.log('📊 Stats - User email:', session?.user?.email);
+    
     if (!session?.user?.email) {
+      console.log('❌ No session email');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     await dbConnect();
 
-    // Get user data
-          const user = await User.findOne({ email: session.user.email });
+    // IMPORTANT: Use ID if available, otherwise fall back to email lookup
+    let user;
+    if (session.user.id) {
+      console.log('✅ Using session.user.id:', session.user.id);
+      user = await User.findById(session.user.id);
+    } else {
+      console.log('⚠️ No session.user.id, falling back to email lookup');
+      user = await User.findOne({ email: session.user.email });
+    }
     
     if (!user) {
-      console.error('Stats: User not found for email:', session.user.email);
-      // Return default stats instead of error
+      console.error('❌ User not found for email:', session.user.email);
       return NextResponse.json({
         user: {
           id: null,
@@ -51,6 +62,9 @@ export async function GET() {
         },
       });
     }
+
+    console.log('✅ User found:', user._id);
+
     // Get today's tasks
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
@@ -67,10 +81,7 @@ export async function GET() {
     const totalToday = todayTasks.length;
     const completionRate = totalToday > 0 ? (completedToday / totalToday) * 100 : 0;
 
-    // Get XP progress
     const xpProgress = getXPProgress(user.xp, user.level);
-
-    // Get all tasks count
     const allTasks = await Task.countDocuments({ userId: user._id });
 
     return NextResponse.json({
@@ -98,7 +109,10 @@ export async function GET() {
       xpProgress,
     });
   } catch (error) {
-    console.error('Error fetching stats:', error);
-    return NextResponse.json({ error: 'Failed to fetch stats' }, { status: 500 });
+    console.error('❌ Error fetching stats:', error);
+    return NextResponse.json({ 
+      error: 'Failed to fetch stats',
+      details: error instanceof Error ? error.message : 'Unknown'
+    }, { status: 500 });
   }
 }
