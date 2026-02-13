@@ -53,12 +53,13 @@ export const authOptions: NextAuthOptions = {
           console.error('JWT error:', error);
         }
       }
+      console.log('🔑 JWT token:', token); 
       return token;
     },
     
     async session({ session, token }) {
       try {
-        if (session.user && token.id) {
+        if ( token.id) {
           // Add ID from token
           session.user.id = token.id as string;
           
