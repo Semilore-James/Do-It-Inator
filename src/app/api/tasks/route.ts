@@ -81,7 +81,9 @@ export async function POST(req: Request) {
       title: result.data.title,
       description: result.data.description || '',
       subtasks: result.data.subtasks || [],
-      deadline: result.data.deadline ? new Date(result.data.deadline) : undefined,
+      deadline: result.data.deadline && result.data.deadline.trim() !== '' 
+    ? new Date(result.data.deadline) 
+    : undefined, 
       visibility: result.data.visibility || 'private',
       sharedWith: result.data.sharedWith || [],
     });

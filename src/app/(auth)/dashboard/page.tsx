@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { Plus, LogOut, Users, Bot } from 'lucide-react';
@@ -32,37 +32,72 @@ export default function Dashboard() {
     }
   }, [status, router]);
 
+  // Use useCallback to prevent infinite loops
+  const fetchData = useCallback(async () => {
+    try {
+      // Fetch tasks
+      const tasksRes = await fetch('/api/tasks');
+      if (!tasksRes.ok) {
+        console.error('Failed to fetch tasks:', tasksRes.status);
+        setTasks([]);
+      } else {
+        const tasksData = await tasksRes.json();
+        setTasks(tasksData.tasks || []);
+      }
+
+      // Fetch stats
+      const statsRes = await fetch('/api/stats');
+      if (!statsRes.ok) {
+        console.error('Failed to fetch stats:', statsRes.status);
+        // Set default stats if fetch fails
+        setStats({
+          totalTasks: 0,
+          completedToday: 0,
+          totalToday: 0,
+          completionRate: 0,
+        });
+        setXpProgress({
+          current: 0,
+          required: 100,
+          percentage: 0,
+        });
+      } else {
+        const statsData = await statsRes.json();
+        setStats(statsData.stats);
+        setXpProgress(statsData.xpProgress);
+      }
+    } catch (error) {
+      console.error('Error fetching data:', error);
+      // Set defaults on error
+      setTasks([]);
+      setStats({
+        totalTasks: 0,
+        completedToday: 0,
+        totalToday: 0,
+        completionRate: 0,
+      });
+      setXpProgress({
+        current: 0,
+        required: 100,
+        percentage: 0,
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }, []); // Empty dependency array - function doesn't depend on anything
+
   useEffect(() => {
     if (status === 'authenticated') {
       fetchData();
     }
-  }, [status]);
+  }, [status, fetchData]);
 
   useEffect(() => {
     if (session?.user?.isDead && !showDeathScreen) {
       setRoastMessage(getRandomRoast());
       setShowDeathScreen(true);
     }
-  }, [session?.user?.isDead]);
-
-  const fetchData = async () => {
-    try {
-      // Fetch tasks
-      const tasksRes = await fetch('/api/tasks');
-      const tasksData = await tasksRes.json();
-      setTasks(tasksData.tasks || []);
-
-      // Fetch stats
-      const statsRes = await fetch('/api/stats');
-      const statsData = await statsRes.json();
-      setStats(statsData.stats);
-      setXpProgress(statsData.xpProgress);
-    } catch (error) {
-      console.error('Error fetching data:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  }, [session?.user?.isDead, showDeathScreen]);
 
   const handleCreateTask = async (taskData: any) => {
     try {
@@ -72,12 +107,19 @@ export default function Dashboard() {
         body: JSON.stringify(taskData),
       });
 
-      if (res.ok) {
-        await fetchData();
-        await update(); // Refresh session to get updated XP
+      if (!res.ok) {
+        const error = await res.json();
+        console.error('Failed to create task:', error);
+        alert(`Failed to create task: ${error.error || 'Unknown error'}`);
+        return;
       }
+
+      // Success - refresh data
+      await fetchData();
+      await update(); // Refresh session to get updated XP
     } catch (error) {
       console.error('Error creating task:', error);
+      alert('Error creating task. Please try again.');
     }
   };
 
@@ -89,10 +131,13 @@ export default function Dashboard() {
         body: JSON.stringify({ completed: true }),
       });
 
-      if (res.ok) {
-        await fetchData();
-        await update(); // Refresh session
+      if (!res.ok) {
+        console.error('Failed to complete task');
+        return;
       }
+
+      await fetchData();
+      await update(); // Refresh session
     } catch (error) {
       console.error('Error completing task:', error);
     }
@@ -106,9 +151,12 @@ export default function Dashboard() {
         method: 'DELETE',
       });
 
-      if (res.ok) {
-        await fetchData();
+      if (!res.ok) {
+        console.error('Failed to delete task');
+        return;
       }
+
+      await fetchData();
     } catch (error) {
       console.error('Error deleting task:', error);
     }
@@ -131,9 +179,12 @@ export default function Dashboard() {
         body: JSON.stringify({ subtasks: updatedSubtasks }),
       });
 
-      if (res.ok) {
-        await fetchData();
+      if (!res.ok) {
+        console.error('Failed to toggle subtask');
+        return;
       }
+
+      await fetchData();
     } catch (error) {
       console.error('Error toggling subtask:', error);
     }
@@ -195,7 +246,7 @@ export default function Dashboard() {
                 <span className="font-bold">{session.user.name}</span>
               </div>
               <button
-                onClick={() => signOut()}
+                onClick={() => signOut({ callbackUrl: '/' })}
                 className="btn-brutal-secondary py-2 px-4 flex items-center gap-2"
               >
                 <LogOut className="w-4 h-4" />
@@ -226,31 +277,33 @@ export default function Dashboard() {
             {/* Health */}
             <div className="card-brutal bg-cream">
               <HealthBar 
-                current={session.user.health} 
-                max={session.user.maxHealth} 
+                current={session.user.health || 10} 
+                max={session.user.maxHealth || 10} 
               />
             </div>
 
             {/* XP */}
             <div className="card-brutal bg-cream">
-              {xpProgress && (
+              {xpProgress ? (
                 <XPBar 
                   current={xpProgress.current}
                   required={xpProgress.required}
-                  level={session.user.level}
+                  level={session.user.level || 1}
                   percentage={xpProgress.percentage}
                 />
+              ) : (
+                <div className="text-center py-4 text-gray-500">Loading XP...</div>
               )}
             </div>
 
             {/* Streaks */}
             <StreakCounter 
-              streaks={session.user.streaks}
-              fragments={session.user.fragments}
+              streaks={session.user.streaks || 0}
+              fragments={session.user.fragments || 0}
             />
 
             {/* Daily Progress */}
-            {stats && (
+            {stats ? (
               <div className="card-brutal bg-skyblue">
                 <h3 className="font-bold mb-3">Today's Progress</h3>
                 <div className="space-y-2">
@@ -268,6 +321,10 @@ export default function Dashboard() {
                     {stats.completionRate}% Complete
                   </div>
                 </div>
+              </div>
+            ) : (
+              <div className="card-brutal bg-skyblue">
+                <div className="text-center py-4 text-gray-500">Loading stats...</div>
               </div>
             )}
           </div>
@@ -320,13 +377,14 @@ export default function Dashboard() {
             )}
 
             {/* Empty State */}
-            {tasks.length === 0 && (
+            {tasks.length === 0 && !isLoading && (
               <div className="card-brutal bg-cream text-center py-12">
                 <h3 className="text-2xl font-black mb-4">No tasks yet!</h3>
                 <p className="text-gray-600 mb-6">Create your first task to get started.</p>
                 <button
                   onClick={() => setIsCreateModalOpen(true)}
                   className="btn-brutal"
+                  disabled={session.user.isDead}
                 >
                   <Plus className="w-5 h-5 inline mr-2" />
                   Create Task
@@ -348,8 +406,8 @@ export default function Dashboard() {
         <DeathScreen
           isOpen={showDeathScreen}
           roastMessage={roastMessage}
-          streaks={session.user.streaks}
-          level={session.user.level}
+          streaks={session.user.streaks || 0}
+          level={session.user.level || 1}
           deathDate={new Date(session.user.deathDate)}
           onRevive={handleRevive}
         />

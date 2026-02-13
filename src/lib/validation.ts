@@ -9,7 +9,7 @@ export const createTaskSchema = z.object({
       text: z.string().min(1, 'Subtask text required').max(100, 'Subtask text too long').trim(),
     })
   ).optional(),
-  deadline: z.string().datetime().optional(),
+  deadline: z.string().optional().nullable(),
   visibility: z.enum(['private', 'shared', 'joint']).default('private'),
   sharedWith: z.array(z.string()).optional(),
 });

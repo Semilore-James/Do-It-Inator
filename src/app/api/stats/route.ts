@@ -10,19 +10,47 @@ export async function GET() {
   try {
     const session = await getServerSession(authOptions);
     
-    if (!session?.user?.id) {
+    if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     await dbConnect();
 
     // Get user data
-    const user = await User.findById(session.user.email);
+          const user = await User.findOne({ email: session.user.email });
     
     if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+      console.error('Stats: User not found for email:', session.user.email);
+      // Return default stats instead of error
+      return NextResponse.json({
+        user: {
+          id: null,
+          email: session.user.email,
+          name: session.user.name,
+          image: session.user.image,
+          health: 10,
+          maxHealth: 10,
+          xp: 0,
+          level: 1,
+          streaks: 0,
+          fragments: 0,
+          isDead: false,
+          deathDate: null,
+          canRevive: false,
+        },
+        stats: {
+          totalTasks: 0,
+          completedToday: 0,
+          totalToday: 0,
+          completionRate: 0,
+        },
+        xpProgress: {
+          current: 0,
+          required: 100,
+          percentage: 0,
+        },
+      });
     }
-
     // Get today's tasks
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
