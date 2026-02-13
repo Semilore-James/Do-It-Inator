@@ -9,7 +9,15 @@ export const createTaskSchema = z.object({
       text: z.string().min(1, 'Subtask text required').max(100, 'Subtask text too long').trim(),
     })
   ).optional(),
-  deadline: z.string().optional().nullable(),
+  deadline: z.union([
+    z.string().refine((val) => {
+      if (!val || val.trim() === '') return true; // Empty is OK
+      const date = new Date(val);
+      return !isNaN(date.getTime()); // Must be valid date if provided
+    }, { message: 'Invalid date format' }),
+    z.null(),
+    z.undefined(),
+  ]).optional(),
   visibility: z.enum(['private', 'shared', 'joint']).default('private'),
   sharedWith: z.array(z.string()).optional(),
 });

@@ -101,6 +101,7 @@ export default function Dashboard() {
 
   const handleCreateTask = async (taskData: any) => {
     try {
+      console.log('Creating task with data:', taskData);
       const res = await fetch('/api/tasks', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -113,10 +114,14 @@ export default function Dashboard() {
         alert(`Failed to create task: ${error.error || 'Unknown error'}`);
         return;
       }
+    const result = await res.json();
+    console.log('Task created successfully:', result);
 
+    // Optimistically update UI
+    setTasks(prevTasks => [result.task, ...prevTasks]);
       // Success - refresh data
-      await fetchData();
-      await update(); // Refresh session to get updated XP
+       fetchData();
+       update(); // Refresh session to get updated XP
     } catch (error) {
       console.error('Error creating task:', error);
       alert('Error creating task. Please try again.');

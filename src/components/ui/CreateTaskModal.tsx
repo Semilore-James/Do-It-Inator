@@ -19,11 +19,11 @@ export default function CreateTaskModal({ isOpen, onClose, onCreate }: CreateTas
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-
+    e.stopPropagation(); 
     const taskData = {
       title,
       description: description || undefined,
-      deadline: deadline || undefined,
+      deadline: deadline && deadline.trim() !== '' ? deadline : undefined,
       visibility,
       subtasks: subtasks.map(text => ({ text })),
     };
