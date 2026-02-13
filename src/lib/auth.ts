@@ -1,4 +1,3 @@
-// src/lib/auth.ts
 import { NextAuthOptions } from 'next-auth';
 import GoogleProvider from 'next-auth/providers/google';
 import dbConnect from '@/lib/dbConnect';
@@ -12,19 +11,12 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   callbacks: {
-    async signIn({ user, account, profile }) {
+    async signIn({ user }) {
       try {
-        console.log('🔵 SignIn callback started for:', user.email);
-        
         await dbConnect();
-        console.log('✅ MongoDB connected');
-
-        // Check if user exists, if not create new user
         const existingUser = await User.findOne({ email: user.email });
-        console.log('🔍 Existing user found:', !!existingUser);
 
         if (!existingUser) {
-          console.log('➕ Creating new user...');
           await User.create({
             email: user.email,
             name: user.name,
@@ -39,42 +31,41 @@ export const authOptions: NextAuthOptions = {
             friends: [],
             friendRequests: [],
           });
-          console.log('✅ New user created');
         }
 
-        console.log('✅ SignIn callback completed successfully');
         return true;
       } catch (error) {
-        console.error('❌ SignIn callback error:', error);
-        // Return true anyway to not block sign-in due to DB issues
-        // User will be created on next attempt
+        console.error('SignIn error:', error);
         return true;
       }
     },
-        // ADD THIS JWT CALLBACK
-    async jwt({ token, user, account }) {
-      // On sign in, add user ID to token
+    
+    async jwt({ token, user }) {
+      // CRITICAL: Add user ID to JWT token on first sign in
       if (user) {
         try {
           await dbConnect();
           const dbUser = await User.findOne({ email: user.email });
           if (dbUser) {
-            token.id = dbUser._id.toString(); // ← This adds the ID to the token
+            token.id = dbUser._id.toString();
           }
         } catch (error) {
-          console.error('❌ JWT callback error:', error);
+          console.error('JWT error:', error);
         }
       }
       return token;
     },
+    
     async session({ session, token }) {
       try {
-        if (session.user) {
+        if (session.user && token.id) {
+          // Add ID from token
+          session.user.id = token.id as string;
+          
           await dbConnect();
-          const dbUser = await User.findOne({ email: session.user.email });
+          const dbUser = await User.findById(token.id);
           
           if (dbUser) {
-            session.user.id = dbUser._id.toString();
             session.user.health = dbUser.health;
             session.user.maxHealth = dbUser.maxHealth;
             session.user.xp = dbUser.xp;
@@ -83,39 +74,46 @@ export const authOptions: NextAuthOptions = {
             session.user.fragments = dbUser.fragments;
             session.user.isDead = dbUser.isDead;
             session.user.deathDate = dbUser.deathDate;
-          } else {
-            console.warn('⚠️ User not found in database for email:', session.user.email);
           }
         }
       } catch (error) {
-        console.error('❌ Session callback error:', error);
-        // Don't throw - return session without extra data
+        console.error('Session error:', error);
       }
       return session;
     },
   },
   pages: {
     signIn: '/',
-    error: '/',
   },
   secret: process.env.NEXTAUTH_SECRET,
-  
-  // Production settings for Vercel
-  useSecureCookies: process.env.NODE_ENV === 'production',
+   useSecureCookies: false,
+    // ADD THESE LINES:
   cookies: {
     sessionToken: {
-      name: process.env.NODE_ENV === 'production' 
-        ? '__Secure-next-auth.session-token' 
-        : 'next-auth.session-token',
+      name: `next-auth.session-token`,
       options: {
         httpOnly: true,
         sameSite: 'lax',
         path: '/',
-        secure: process.env.NODE_ENV === 'production',
+        secure: false, // Set to false for localhost
+      },
+    },
+    callbackUrl: {
+      name: `next-auth.callback-url`,
+      options: {
+        sameSite: 'lax',
+        path: '/',
+        secure: false,
+      },
+    },
+    csrfToken: {
+      name: `next-auth.csrf-token`,
+      options: {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        secure: false,
       },
     },
   },
-  
-  // Enable debug mode to see detailed logs
-  debug: process.env.NODE_ENV === 'development',
 };

@@ -6,7 +6,7 @@ import Task from '@/lib/models/Task';
 import User from '@/lib/models/User';
 import { getXPProgress } from '@/lib/gamification';
 
-export async function GET(req: Request) {
+export async function GET() {
   try {
     const session = await getServerSession(authOptions);
     
@@ -17,7 +17,7 @@ export async function GET(req: Request) {
     await dbConnect();
 
     // Get user data
-    const user = await User.findById(session.user.id);
+    const user = await User.findById(session.user.email);
     
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });

@@ -7,22 +7,29 @@ import User from '@/lib/models/User';
 import { createTaskSchema } from '@/lib/validation';
 import { XP_REWARDS } from '@/lib/gamification';
 
-// GET all tasks for authenticated user
 export async function GET(req: Request) {
   try {
     const session = await getServerSession(authOptions);
     
-    if (!session?.user?.id) {
+    if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     await dbConnect();
 
-    // Get user's own tasks and tasks shared with them
+ let userId = session.user.id;
+    if (!userId) {
+      const user = await User.findOne({ email: session.user.email });
+      if (!user) {
+        return NextResponse.json({ error: 'User not found' }, { status: 404 });
+      }
+      userId = user._id.toString();
+    }
+
     const tasks = await Task.find({
       $or: [
-        { userId: session.user.id },
-        { sharedWith: session.user.id },
+        { userId: userId },
+        { sharedWith: userId },
       ],
     })
       .sort({ createdAt: -1 })
@@ -36,19 +43,17 @@ export async function GET(req: Request) {
   }
 }
 
-// POST create new task
 export async function POST(req: Request) {
   try {
     const session = await getServerSession(authOptions);
     
-    if (!session?.user?.id) {
+    if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const body = await req.json();
-    
-    // Validate input
     const result = createTaskSchema.safeParse(body);
+    
     if (!result.success) {
       return NextResponse.json(
         { error: 'Invalid input', details: result.error },
@@ -57,10 +62,19 @@ export async function POST(req: Request) {
     }
 
     await dbConnect();
+    
+     // Get user ID
+    let userId = session.user.id;
+    if (!userId) {
+      const user = await User.findOne({ email: session.user.email });
+      if (!user) {
+        return NextResponse.json({ error: 'User not found' }, { status: 404 });
+      }
+      userId = user._id.toString();
+    }
 
-    // Create task
     const task = await Task.create({
-      userId: session.user.id,
+      userId: userId,
       title: result.data.title,
       description: result.data.description,
       subtasks: result.data.subtasks || [],
@@ -69,8 +83,7 @@ export async function POST(req: Request) {
       sharedWith: result.data.sharedWith || [],
     });
 
-    // Award XP for creating task
-    await User.findByIdAndUpdate(session.user.id, {
+    await User.findByIdAndUpdate(userId, {
       $inc: { xp: XP_REWARDS.TASK_CREATE },
     });
 
