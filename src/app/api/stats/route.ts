@@ -59,7 +59,7 @@ export async function GET() {
     endOfDay.setHours(23, 59, 59, 999);
 
     const todayTasks = await Task.find({
-      userId: session.user.id,
+      userId: user._id,
       createdAt: { $gte: startOfDay, $lte: endOfDay },
     });
 
@@ -71,7 +71,7 @@ export async function GET() {
     const xpProgress = getXPProgress(user.xp, user.level);
 
     // Get all tasks count
-    const allTasks = await Task.countDocuments({ userId: session.user.id });
+    const allTasks = await Task.countDocuments({ userId: user._id });
 
     return NextResponse.json({
       user: {
